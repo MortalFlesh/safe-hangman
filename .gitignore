@@ -11,4 +11,4 @@ release.sh
 .idea/
 *.DotSettings.user
 
-/public/
+/gh-pages/
