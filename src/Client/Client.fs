@@ -11,59 +11,34 @@ open Shared
 open Fulma
 
 
-type Model = Counter option
+type State = Hangman option
 
-type Msg =
-| Increment
-| Decrement
-| Init of Result<Counter, exn>
+type Action =
+| Guess of char
+| NewWord of string
 
+let initialState = {
+    word = ""
+    guesses = 0
+}
 
+let init () : State * Cmd<Action> =
+    let state = None
+    let cmd = Cmd.ofMsg (NewWord "Foo")
+    state, cmd
 
-let init () : Model * Cmd<Msg> =
-    let model = None
-    let cmd =
-        Cmd.ofFunc
-            (fun _ -> 42)
-            []
-            (Ok >> Init)
-            (Error >> Init)
-    model, cmd
-
-let update (msg : Msg) (model : Model) : Model * Cmd<Msg> =
+let update (action : Action) (state : State) : State * Cmd<Action> =
     let model' =
-        match model,  msg with
-        | Some x, Increment -> Some (x + 1)
-        | Some x, Decrement -> Some (x - 1)
-        | None, Init (Ok x) -> Some x
-        | _ -> None
+        match state, action with
+        | _, NewWord w -> Some { word = w; guesses = 0 }
+        | Some state, Guess x -> Some { state with word = state.word + x.ToString(); guesses = state.guesses + 1 } // todo fix
+        | None, Guess _ -> None
     model', Cmd.none
 
-let safeComponents =
-    let intersperse sep ls =
-        List.foldBack (fun x -> function
-            | [] -> [x]
-            | xs -> x::sep::xs) ls []
-
-    let components =
-        [
-            "Saturn", "https://saturnframework.github.io/docs/"
-            "Fable", "http://fable.io"
-            "Elmish", "https://elmish.github.io/elmish/"
-            "Fulma", "https://mangelmaxime.github.io/Fulma"
-        ]
-        |> List.map (fun (desc,link) -> a [ Href link ] [ str desc ] )
-        |> intersperse (str ", ")
-        |> span [ ]
-
-    p [ ]
-        [ strong [] [ str "SAFE Template" ]
-          str " powered by: "
-          components ]
-
 let show = function
-| Some x -> string x
-| None -> "Loading..."
+| Some state ->
+    sprintf "%s (%d)" state.word state.guesses
+| None -> "Click the button!"
 
 let button txt onClick =
     Button.button
@@ -72,7 +47,7 @@ let button txt onClick =
           Button.OnClick onClick ]
         [ str txt ]
 
-let view (model : Model) (dispatch : Msg -> unit) =
+let view (state : State) (dispatch : Action -> unit) =
     div []
         [ Navbar.navbar [ Navbar.Color IsPrimary ]
             [ Navbar.Item.div [ ]
@@ -81,14 +56,12 @@ let view (model : Model) (dispatch : Msg -> unit) =
 
           Container.container []
               [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
-                    [ Heading.h3 [] [ str ("Press buttons to manipulate counter: " + show model) ] ]
+                    [ Heading.h3 [] [ str ("Word: " + show state) ] ]
                 Columns.columns []
-                    [ Column.column [] [ button "-" (fun _ -> dispatch Decrement) ]
-                      Column.column [] [ button "+" (fun _ -> dispatch Increment) ] ] ]
+                    [ Column.column [] [ button "-" (fun _ -> dispatch (Guess 'x')) ]
+                      Column.column [] [ button "+" (fun _ -> dispatch (Guess 'y')) ] ] ]
 
-          Footer.footer [ ]
-                [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
-                    [ safeComponents ] ] ]
+        ]
 
 
 #if DEBUG

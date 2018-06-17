@@ -1,4 +1,7 @@
 namespace Shared
 
-type Counter = int
-
+type Hangman =
+    {
+        word: string
+        guesses: int
+    }
