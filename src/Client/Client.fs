@@ -7,57 +7,85 @@ open Elmish.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
-open Shared
-
 open Fulma
 
+type Hangman =
+    {
+        word: string
+        guesses: char list
+    }
 
 type State = Hangman option
+
+type GameProgress =
+| Playing of int
+| PlayingLastAttempt
+| Win
+| Lost
 
 type Action =
 | Guess of string
 | NewWord of string
 
-type GameProgress =
-| Playing
-| Win
-| Lost
-
 let maxAttempts = 6
 
 let init () : State * Cmd<Action> =
     let state = None
-    let cmd = Cmd.ofMsg (NewWord "Foo")
+    let cmd = Cmd.ofMsg (NewWord "Amalka")
     state, cmd
+
+let guessChar (guess: string) =
+    (guess.Chars 0) |> Char.ToUpper
 
 let update (action : Action) (state : State) : State * Cmd<Action> =
     let state' =
         match state, action with
         | _, NewWord w -> Some { word = (w.ToUpper ()); guesses = List.Empty }
-        | Some state, Guess g when (g.Length = 1) -> Some { state with guesses = (g.Chars 0 |> Char.ToUpper) :: state.guesses }
+        | Some state, Guess g when (g.Length = 1) && state.guesses |> List.contains (g |> guessChar) -> Some state
+        | Some state, Guess g when (g.Length = 1) -> Some { state with guesses = (g |> guessChar) :: state.guesses }
         | Some state, Guess _ -> Some state
         | None, Guess _ -> None
+
     state', Cmd.none
 
 let showWord = function
 | Some state ->
-    let word = 
-        state.word
-        |> Seq.toList
-        |> Seq.map (fun letter -> if (state.guesses |> Seq.contains letter) then letter.ToString () else "_")
-        |> String.concat " "
-
-    sprintf "%s (DEBUG: %A)"
-    <| word
-    <| state.guesses
+    state.word
+    |> Seq.toList
+    |> Seq.map (fun letter -> if (state.guesses |> Seq.contains letter) then letter.ToString () else "_")
+    |> String.concat " "
 | None -> "Create new word!"
+
+let remainingLetters state =
+    state.word
+    |> Seq.toList
+    |> List.filter ((fun l -> state.guesses |> List.contains l) >> not)
+    |> List.length
+
+let remainingAttempts state =
+    let charToString c = c.ToString ()
+    let wrongAttempts =
+        state.guesses
+        |> List.map charToString
+        |> List.filter (state.word.Contains >> not)
+        |> List.length
+
+    maxAttempts - wrongAttempts
+
+let gameStatus state =
+    match (remainingLetters state, remainingAttempts state) with
+    | remainingLetters, remainingAttempts when remainingLetters <= 0 && remainingAttempts > 0 -> Win
+    | remainingLetters, remainingAttempts when remainingLetters > 0 && remainingAttempts = 1 -> PlayingLastAttempt
+    | remainingLetters, remainingAttempts when remainingLetters > 0 && remainingAttempts > 1 -> Playing remainingAttempts
+    | _ -> Lost
 
 let showGameStatus = function
 | Some state ->
-    match maxAttempts - state.guesses.Length with
-    | remainng when remainng > 1 -> sprintf "Guesses remaing: %d" remainng
-    | 1 -> "Last attempt!"
-    | _ -> "You have lost!"
+    match state |> gameStatus with
+    | Playing remaining -> sprintf "Guesses remaining: %d" remaining
+    | PlayingLastAttempt -> sprintf "Last attempt!"
+    | Win -> "You have guessed the word! Congratulations!"
+    | Lost -> "You have lost!"
 | None -> "No word created yet..."
 
 let button txt onClick =
@@ -73,6 +101,19 @@ let guessInput onGuess =
             OnKeyDown onGuess ] ]
 
 let view (state : State) (dispatch : Action -> unit) =
+    let guessInputColumn =
+        Columns.columns [ Columns.IsCentered ]
+                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ guessInput (fun e -> dispatch (Guess (e.key) )) ] ]
+
+    let inputColumn =
+        match state with
+        | Some state ->
+            match state |> gameStatus with
+            | Playing _ -> guessInputColumn
+            | PlayingLastAttempt -> guessInputColumn
+            | _ -> null
+        | _ -> null
+
     div []
         [ Navbar.navbar [ Navbar.Color IsPrimary ]
             [ Navbar.Item.div [ ]
@@ -83,14 +124,13 @@ let view (state : State) (dispatch : Action -> unit) =
               [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
                     [ Heading.h3 [] [ str (showWord state) ] ]
 
-                Columns.columns [ Columns.IsCentered ]
-                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ guessInput (fun e -> dispatch (Guess (e.key) )) ] ]
+                inputColumn
 
                 Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
                     [ Heading.h3 [] [ str (showGameStatus state) ] ]
 
                 Columns.columns [ Columns.IsCentered ]
-                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ button "New word" (fun _ -> dispatch (NewWord "hangman")) ] ]
+                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ button "New word" (fun _ -> dispatch (NewWord "Beira")) ] ]
               ]
         ]
 
