@@ -17,11 +17,6 @@ type Action =
 | Guess of char
 | NewWord of string
 
-let initialState = {
-    word = ""
-    guesses = 0
-}
-
 let init () : State * Cmd<Action> =
     let state = None
     let cmd = Cmd.ofMsg (NewWord "Foo")
@@ -30,14 +25,14 @@ let init () : State * Cmd<Action> =
 let update (action : Action) (state : State) : State * Cmd<Action> =
     let model' =
         match state, action with
-        | _, NewWord w -> Some { word = w; guesses = 0 }
-        | Some state, Guess x -> Some { state with word = state.word + x.ToString(); guesses = state.guesses + 1 } // todo fix
+        | _, NewWord w -> Some { word = w; guesses = List.Empty }
+        | Some state, Guess c -> Some { state with guesses = c :: state.guesses }
         | None, Guess _ -> None
     model', Cmd.none
 
 let show = function
 | Some state ->
-    sprintf "%s (%d)" state.word state.guesses
+    sprintf "%s (%A)" state.word state.guesses
 | None -> "Click the button!"
 
 let button txt onClick =
