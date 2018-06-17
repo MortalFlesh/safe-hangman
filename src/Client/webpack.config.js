@@ -25,7 +25,11 @@ console.log("Bundling for " + (isProduction ? "production" : "development") + ".
 
 module.exports = {
     devtool: "source-map",
-    entry: resolve('./Client.fsproj'),
+    entry: [
+        'webpack-dev-server/client?http://127.0.0.1:8080',
+        'webpack/hot/only-dev-server',
+        resolve('./Client.fsproj'),
+    ],
     mode: isProduction ? "production" : "development",
     output: {
         path: resolve('./public/js'),
@@ -38,7 +42,7 @@ module.exports = {
     devServer: {
         proxy: {
             '/api/*': {
-                target: 'http://localhost:' + port,
+                target: 'http://127.0.0.1:' + port,
                 changeOrigin: true
             }
         },
