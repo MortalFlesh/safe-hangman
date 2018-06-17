@@ -5,7 +5,6 @@ open Elmish.React
 
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
-open Fable.PowerPack.Fetch
 
 open Shared
 
@@ -24,8 +23,8 @@ type Msg =
 let init () : Model * Cmd<Msg> =
     let model = None
     let cmd =
-        Cmd.ofPromise
-            (fetchAs<int> "/api/init")
+        Cmd.ofFunc
+            (fun _ -> 42)
             []
             (Ok >> Init)
             (Error >> Init)

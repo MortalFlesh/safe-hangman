@@ -2,7 +2,6 @@
 open System
 open Fake
 
-let serverPath = "./src/Server" |> FullName
 let clientPath = "./src/Client" |> FullName
 let deployDir = "./deploy" |> FullName
 
@@ -41,19 +40,11 @@ Target "InstallClient" (fun _ ->
     run dotnetCli "restore" clientPath
 )
 
-Target "RestoreServer" (fun () ->
-    run dotnetCli "restore" serverPath
-)
-
 Target "Build" (fun () ->
-    run dotnetCli "build" serverPath
     run dotnetCli "fable webpack -- -p" clientPath
 )
 
 Target "Run" (fun () ->
-    let server = async {
-        run dotnetCli "watch run" serverPath
-    }
     let client = async {
         run dotnetCli "fable webpack-dev-server" clientPath
     }
@@ -62,7 +53,7 @@ Target "Run" (fun () ->
         Diagnostics.Process.Start "http://127.0.0.1:8080" |> ignore
     }
 
-    [ server; client; browser ]
+    [ client; browser ]
     |> Async.Parallel
     |> Async.RunSynchronously
     |> ignore
@@ -74,7 +65,6 @@ Target "Run" (fun () ->
     ==> "Build"
 
 "InstallClient"
-    ==> "RestoreServer"
     ==> "Run"
 
 RunTargetOrDefault "Build"

@@ -3,5 +3,5 @@
 ./build.sh
 cp -R src/Client/public ./
 cd public
-cls
+clear
 git status
