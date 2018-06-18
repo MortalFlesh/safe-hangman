@@ -46,7 +46,7 @@ Target "Build" (fun () ->
 
 Target "Run" (fun () ->
     let client = async {
-        run dotnetCli "fable webpack-dev-server" clientPath
+        run dotnetCli "fable webpack-dev-server -- --host 127.0.0.1" clientPath
     }
     let browser = async {
         Threading.Thread.Sleep 5000

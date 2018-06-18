@@ -1,69 +1,92 @@
 module Client
 
+open System
 open Elmish
 open Elmish.React
 
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
-open Shared
-
 open Fulma
 
+type Hangman =
+    {
+        word: string
+        guesses: char list
+    }
 
-type Model = Counter option
+type State = Hangman option
 
-type Msg =
-| Increment
-| Decrement
-| Init of Result<Counter, exn>
+type GameProgress =
+| Playing of int
+| PlayingLastAttempt
+| Win
+| Lost
 
+type Action =
+| Guess of string
+| NewWord of string
 
+let maxAttempts = 6
 
-let init () : Model * Cmd<Msg> =
-    let model = None
-    let cmd =
-        Cmd.ofFunc
-            (fun _ -> 42)
-            []
-            (Ok >> Init)
-            (Error >> Init)
-    model, cmd
+let init () : State * Cmd<Action> =
+    let state = None
+    let cmd = Cmd.ofMsg (NewWord "Amalka")
+    state, cmd
 
-let update (msg : Msg) (model : Model) : Model * Cmd<Msg> =
-    let model' =
-        match model,  msg with
-        | Some x, Increment -> Some (x + 1)
-        | Some x, Decrement -> Some (x - 1)
-        | None, Init (Ok x) -> Some x
-        | _ -> None
-    model', Cmd.none
+let guessChar (guess: string) =
+    (guess.Chars 0) |> Char.ToUpper
 
-let safeComponents =
-    let intersperse sep ls =
-        List.foldBack (fun x -> function
-            | [] -> [x]
-            | xs -> x::sep::xs) ls []
+let update (action : Action) (state : State) : State * Cmd<Action> =
+    let state' =
+        match state, action with
+        | _, NewWord w -> Some { word = (w.ToUpper ()); guesses = List.Empty }
+        | Some state, Guess g when (g.Length = 1) && state.guesses |> List.contains (g |> guessChar) -> Some state
+        | Some state, Guess g when (g.Length = 1) -> Some { state with guesses = (g |> guessChar) :: state.guesses }
+        | Some state, Guess _ -> Some state
+        | None, Guess _ -> None
 
-    let components =
-        [
-            "Saturn", "https://saturnframework.github.io/docs/"
-            "Fable", "http://fable.io"
-            "Elmish", "https://elmish.github.io/elmish/"
-            "Fulma", "https://mangelmaxime.github.io/Fulma"
-        ]
-        |> List.map (fun (desc,link) -> a [ Href link ] [ str desc ] )
-        |> intersperse (str ", ")
-        |> span [ ]
+    state', Cmd.none
 
-    p [ ]
-        [ strong [] [ str "SAFE Template" ]
-          str " powered by: "
-          components ]
+let showWord = function
+| Some state ->
+    state.word
+    |> Seq.toList
+    |> Seq.map (fun letter -> if (state.guesses |> Seq.contains letter) then letter.ToString () else "_")
+    |> String.concat " "
+| None -> "Create new word!"
 
-let show = function
-| Some x -> string x
-| None -> "Loading..."
+let remainingLetters state =
+    state.word
+    |> Seq.toList
+    |> List.filter ((fun l -> state.guesses |> List.contains l) >> not)
+    |> List.length
+
+let remainingAttempts state =
+    let charToString c = c.ToString ()
+    let wrongAttempts =
+        state.guesses
+        |> List.map charToString
+        |> List.filter (state.word.Contains >> not)
+        |> List.length
+
+    maxAttempts - wrongAttempts
+
+let gameStatus state =
+    match (remainingLetters state, remainingAttempts state) with
+    | remainingLetters, remainingAttempts when remainingLetters <= 0 && remainingAttempts > 0 -> Win
+    | remainingLetters, remainingAttempts when remainingLetters > 0 && remainingAttempts = 1 -> PlayingLastAttempt
+    | remainingLetters, remainingAttempts when remainingLetters > 0 && remainingAttempts > 1 -> Playing remainingAttempts
+    | _ -> Lost
+
+let showGameStatus = function
+| Some state ->
+    match state |> gameStatus with
+    | Playing remaining -> sprintf "Guesses remaining: %d" remaining
+    | PlayingLastAttempt -> sprintf "Last attempt!"
+    | Win -> "You have guessed the word! Congratulations!"
+    | Lost -> "You have lost!"
+| None -> "No word created yet..."
 
 let button txt onClick =
     Button.button
@@ -72,23 +95,44 @@ let button txt onClick =
           Button.OnClick onClick ]
         [ str txt ]
 
-let view (model : Model) (dispatch : Msg -> unit) =
+let guessInput onGuess =
+    Input.text [ Input.Props [
+            Value ""
+            OnKeyDown onGuess ] ]
+
+let view (state : State) (dispatch : Action -> unit) =
+    let guessInputColumn =
+        Columns.columns [ Columns.IsCentered ]
+                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ guessInput (fun e -> dispatch (Guess (e.key) )) ] ]
+
+    let inputColumn =
+        match state with
+        | Some state ->
+            match state |> gameStatus with
+            | Playing _ -> guessInputColumn
+            | PlayingLastAttempt -> guessInputColumn
+            | _ -> null
+        | _ -> null
+
     div []
         [ Navbar.navbar [ Navbar.Color IsPrimary ]
             [ Navbar.Item.div [ ]
                 [ Heading.h2 [ ]
-                    [ str "SAFE Template" ] ] ]
+                    [ str "SAFE - Hangman" ] ] ]
 
-          Container.container []
+          Container.container [ ]
               [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
-                    [ Heading.h3 [] [ str ("Press buttons to manipulate counter: " + show model) ] ]
-                Columns.columns []
-                    [ Column.column [] [ button "-" (fun _ -> dispatch Decrement) ]
-                      Column.column [] [ button "+" (fun _ -> dispatch Increment) ] ] ]
+                    [ Heading.h3 [] [ str (showWord state) ] ]
 
-          Footer.footer [ ]
-                [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
-                    [ safeComponents ] ] ]
+                inputColumn
+
+                Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
+                    [ Heading.h3 [] [ str (showGameStatus state) ] ]
+
+                Columns.columns [ Columns.IsCentered ]
+                    [ Column.column [ Column.Width (Screen.All, Column.Is2) ] [ button "New word" (fun _ -> dispatch (NewWord "Beira")) ] ]
+              ]
+        ]
 
 
 #if DEBUG
