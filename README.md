@@ -1,5 +1,5 @@
-Safe Hangman ([DEMO](https://mortalflesh.github.io/safe-hangman/))
-============
+Hangman is SAFE-stack ([DEMO](https://mortalflesh.github.io/safe-hangman/))
+=====================
 
 [![hangman](https://img.shields.io/badge/hangman-F%23-blue.svg)](https://github.com/MortalFlesh/safe-hangman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/MortalFlesh/safe-hangman/blob/master/LICENSE)
